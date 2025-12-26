@@ -73,11 +73,6 @@ fun DreidelScreen(
 
         Spacer(Modifier.height(height = 16.dp))
 
-//        state.lastSide?.let {
-//            Text(text = "Result: ${it.hebrew}", fontSize = 22.sp)
-//        }
-//
-//        Spacer(Modifier.height(height = 8.dp))
         Text(text = state.message, fontSize = 22.sp)
 
         Spacer(Modifier.height(height = 24.dp))
