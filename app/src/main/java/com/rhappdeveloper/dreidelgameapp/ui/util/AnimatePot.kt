@@ -45,7 +45,7 @@ fun AnimatedPot(
         )
 
         AnimatedVisibility(
-            visible = changed && diff != 0,
+            visible = changed,
             enter = fadeIn() + slideInVertically { it / 2 },
             exit = fadeOut() + slideOutVertically { it / 2 }
         ) {
