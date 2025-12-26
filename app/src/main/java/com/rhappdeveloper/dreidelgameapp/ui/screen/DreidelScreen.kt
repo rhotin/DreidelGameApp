@@ -19,6 +19,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -88,6 +89,7 @@ fun DreidelScreen(
             verticalAlignment = Alignment.Bottom
         ) {
             Button(
+                modifier = Modifier.testTag("reset_button"),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error
                 ),
@@ -97,6 +99,7 @@ fun DreidelScreen(
                 Text(text = "Reset Game")
             }
             Button(
+                modifier = Modifier.testTag("spin_button"),
                 onClick = { viewModel.onIntent(intent = DreidelIntent.Spin) },
                 enabled = !state.isSpinning
             ) {

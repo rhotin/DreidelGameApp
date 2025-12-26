@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rhappdeveloper.dreidelgameapp.model.DreidelLandingResult
@@ -39,6 +40,9 @@ fun AnimatedDreidel(
             .rotate(rotation),
         contentAlignment = Alignment.Center
     ) {
-        Text(side?.hebrew ?: "▲", fontSize = 48.sp)
+        Text(
+            side?.hebrew ?: "▲", fontSize = 48.sp,
+            modifier = Modifier.testTag("side_result_text")
+        )
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.sp
 
 @Composable
@@ -40,7 +41,7 @@ fun AnimatedPot(
         Text(
             text = pot.toString(),
             fontSize = 28.sp,
-            modifier = Modifier.scale(scale)
+            modifier = Modifier.scale(scale).testTag("pot_text")
         )
 
         AnimatedVisibility(
