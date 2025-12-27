@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.kotlin.ksp)
+    id("jacoco")
 }
 
 android {
@@ -70,4 +71,33 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
     ksp(libs.kotlin.metadata.jvm)
+}
+
+tasks.withType<JacocoReport>().configureEach {
+    classDirectories.setFrom(
+        files(
+            classDirectories.files.map {
+                fileTree(it) {
+                    exclude(
+                        "**/*Application*",
+                        "**/*Activity*",
+                        "**/BuildConfig.*",
+                        "**/*Composable*",
+                        "**/di/**",
+                        "**/Hilt_*",
+                        "**/*Hilt*",
+                        "**/*Kt$*",
+                        "**/R.class",
+                        "**/R$*.class",
+                        "**/ui/**",
+                        "**/*_AggregatedDeps*",
+                        "**/*_ComponentTreeDeps*",
+                        "**/*_Factory*",
+                        "**/*_HiltModules*",
+                        "**/*_MembersInjector*"
+                    )
+                }
+            }
+        )
+    )
 }
