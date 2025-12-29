@@ -66,4 +66,23 @@ class DreidelRulesTest {
         assertEquals(1, result.potDelta)
         assertEquals(MessageKey.SHIN, result.messageKey)
     }
+
+    @Test
+    fun hei_with_pot_of_one_takes_nothing() {
+        val result = rules.apply(1, DreidelLandingResult.HEI)
+        assertEquals(1, result.newPot)
+        assertEquals(0, result.potDelta)
+    }
+
+    @Test
+    fun gimel_with_empty_pot_takes_nothing() {
+        val result = rules.apply(
+            pot = 0,
+            side = DreidelLandingResult.GIMEL
+        )
+
+        assertEquals(0, result.newPot)
+        assertEquals(0, result.potDelta)
+        assertEquals(MessageKey.GIMEL, result.messageKey)
+    }
 }

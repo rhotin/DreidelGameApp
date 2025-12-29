@@ -77,8 +77,22 @@ fun DreidelScreen(
         Text(
             text = when (state.messageKey) {
                 MessageKey.NUN -> "Nun – nothing happens"
-                MessageKey.GIMEL -> "Gimel – you took the whole pot!"
-                MessageKey.HEI -> "Hei – you took half the pot"
+                MessageKey.GIMEL -> {
+                    val taken = kotlin.math.abs(state.potDelta)
+                    when {
+                        taken == 0 -> "Gimel – the pot is empty"
+                        else -> "Gimel – you took the whole pot!"
+                    }
+                }
+
+                MessageKey.HEI -> {
+                    when (val taken = kotlin.math.abs(state.potDelta)) {
+                        0 -> "Hei – nothing to take"
+                        1 -> "Hei – you took 1 coin from the pot"
+                        else -> "Hei – you took $taken coins from the pot"
+                    }
+                }
+
                 MessageKey.SHIN -> "Shin – you added 1 to the pot"
                 MessageKey.SPINNING -> "Spinning..."
                 null -> "Tap spin to play"
