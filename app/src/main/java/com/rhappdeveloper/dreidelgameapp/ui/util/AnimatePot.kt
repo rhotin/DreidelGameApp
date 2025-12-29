@@ -21,10 +21,9 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun AnimatedPot(
     pot: Int,
-    previousPot: Int,
+    potDelta: Int,
 ) {
-    val changed = pot != previousPot
-    val diff = pot - previousPot
+    val changed = potDelta != 0
 
     val scale by animateFloatAsState(
         targetValue = if (changed) 1.2f else 1f,
@@ -50,9 +49,9 @@ fun AnimatedPot(
             exit = fadeOut() + slideOutVertically { it / 2 }
         ) {
             Text(
-                text = if (diff > 0) "+$diff" else diff.toString(),
+                text = if (potDelta > 0) "+$potDelta" else potDelta.toString(),
                 fontSize = 16.sp,
-                color = if (diff > 0)
+                color = if (potDelta > 0)
                     MaterialTheme.colorScheme.primary
                 else
                     MaterialTheme.colorScheme.error

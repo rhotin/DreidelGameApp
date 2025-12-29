@@ -3,7 +3,9 @@ package com.rhappdeveloper.dreidelgameapp.mvi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.rhappdeveloper.dreidelgameapp.domain.DreidelRules
 import com.rhappdeveloper.dreidelgameapp.domain.DreidelSideProvider
+import com.rhappdeveloper.dreidelgameapp.domain.MessageKey
 import com.rhappdeveloper.dreidelgameapp.model.DreidelLandingResult
 import com.rhappdeveloper.dreidelgameapp.model.DreidelState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,7 +20,8 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class DreidelViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
-    private val sideProvider: DreidelSideProvider
+    private val sideProvider: DreidelSideProvider,
+    private val rules: DreidelRules
 ) : ViewModel() {
 
     companion object {
@@ -48,9 +51,9 @@ class DreidelViewModel @Inject constructor(
         updateState(
             _state.value.copy(
                 lastSide = null,
-                previousPot = 10,
+                potDelta = 0,
                 pot = 10,
-                message = "Tap spin to play",
+                messageKey = null,
                 isSpinning = false
             )
         )
@@ -63,53 +66,27 @@ class DreidelViewModel @Inject constructor(
         updateState(
             _state.value.copy(
                 isSpinning = true,
-                message = "Spinning..."
+                messageKey = MessageKey.SPINNING
             )
         )
 
         viewModelScope.launch {
             _effects.send(DreidelEffect.SpinSound)
             delay(1200)
+
             val current = _state.value
-            val newState = when (val side = sideProvider.next()) {
-                DreidelLandingResult.NUN ->
-                    current.copy(
-                        previousPot = current.pot,
-                        lastSide = side,
-                        message = "Nun – nothing happens"
-                    )
+            val side = sideProvider.next()
+            val result = rules.apply(current.pot, side)
 
-
-                DreidelLandingResult.GIMEL ->
-                    current.copy(
-                        previousPot = current.pot,
-                        pot = 0,
-                        lastSide = side,
-                        message = "Gimel – you took the whole pot!"
-                    )
-
-
-                DreidelLandingResult.HEI -> {
-                    val taken = current.pot / 2
-                    current.copy(
-                        previousPot = current.pot,
-                        pot = current.pot - taken,
-                        lastSide = side,
-                        message = "Hei – you took half the pot: $taken"
-                    )
-                }
-
-
-                DreidelLandingResult.SHIN ->
-                    current.copy(
-                        previousPot = current.pot,
-                        pot = current.pot + 1,
-                        lastSide = side,
-                        message = "Shin – you added 1 to the pot"
-                    )
-            }
-
-            updateState(newState.copy(isSpinning = false))
+            updateState(
+                current.copy(
+                    pot = result.newPot,
+                    potDelta = result.potDelta,
+                    lastSide = side,
+                    messageKey = result.messageKey,
+                    isSpinning = false
+                )
+            )
             _effects.send(DreidelEffect.ResultSound)
         }
     }

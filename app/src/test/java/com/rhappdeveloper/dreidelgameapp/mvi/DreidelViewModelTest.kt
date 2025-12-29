@@ -1,6 +1,7 @@
 package com.rhappdeveloper.dreidelgameapp.mvi
 
 import androidx.lifecycle.SavedStateHandle
+import com.rhappdeveloper.dreidelgameapp.domain.DreidelRules
 import com.rhappdeveloper.dreidelgameapp.fakes.FakeDreidelSideProvider
 import com.rhappdeveloper.dreidelgameapp.model.DreidelLandingResult
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +34,8 @@ class DreidelViewModelTest {
     private fun createViewModel(result: DreidelLandingResult) =
         DreidelViewModel(
             savedStateHandle = SavedStateHandle(),
-            sideProvider = FakeDreidelSideProvider(result)
+            sideProvider = FakeDreidelSideProvider(result),
+            rules = DreidelRules()
         )
 
     @Test
@@ -41,9 +43,10 @@ class DreidelViewModelTest {
         val viewModel = createViewModel(DreidelLandingResult.NUN)
         val state = viewModel.state.value
         Assert.assertEquals(10, state.pot)
-        Assert.assertEquals(10, state.previousPot)
+        Assert.assertEquals(0, state.potDelta)
         Assert.assertNull(state.lastSide)
         Assert.assertFalse(state.isSpinning)
+        Assert.assertNull(state.messageKey)
     }
 
     @Test
@@ -56,7 +59,7 @@ class DreidelViewModelTest {
     }
 
     @Test
-    fun spin_results_are_correct() = runTest  {
+    fun spin_results_are_correct() = runTest {
         val cases = listOf(
             DreidelLandingResult.GIMEL to Triple(0, 10, "GIMEL"),
             DreidelLandingResult.NUN to Triple(10, 10, "NUN"),
@@ -71,22 +74,27 @@ class DreidelViewModelTest {
             advanceUntilIdle()
             val state = viewModel.state.value
             Assert.assertEquals(expectedPot, state.pot)
-            Assert.assertEquals(expectedPrev, state.previousPot)
+            Assert.assertEquals(expectedPrev, state.potDelta)
             Assert.assertEquals(result, state.lastSide)
             Assert.assertFalse(state.isSpinning)
         }
     }
 
     @Test
-    fun reset_sets_state_to_initial() = runTest  {
-        val results = listOf(DreidelLandingResult.GIMEL, DreidelLandingResult.NUN, DreidelLandingResult.HEI, DreidelLandingResult.SHIN)
+    fun reset_sets_state_to_initial() = runTest {
+        val results = listOf(
+            DreidelLandingResult.GIMEL,
+            DreidelLandingResult.NUN,
+            DreidelLandingResult.HEI,
+            DreidelLandingResult.SHIN
+        )
         results.forEach { result ->
             val viewModel = createViewModel(result)
             viewModel.onIntent(DreidelIntent.Reset)
             advanceUntilIdle()
             val state = viewModel.state.value
             Assert.assertEquals(10, state.pot)
-            Assert.assertEquals(10, state.previousPot)
+            Assert.assertEquals(10, state.potDelta)
             Assert.assertNull(state.lastSide)
             Assert.assertFalse(state.isSpinning)
         }

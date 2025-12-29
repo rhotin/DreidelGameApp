@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.rhappdeveloper.dreidelgameapp.domain.MessageKey
 import com.rhappdeveloper.dreidelgameapp.mvi.DreidelEffect
 import com.rhappdeveloper.dreidelgameapp.mvi.DreidelIntent
 import com.rhappdeveloper.dreidelgameapp.mvi.DreidelViewModel
@@ -65,7 +66,7 @@ fun DreidelScreen(
 
         AnimatedPot(
             pot = state.pot,
-            previousPot = state.previousPot
+            potDelta = state.potDelta
         )
         // Text("Pot: ${state.pot}", fontSize = 20.sp)
 
@@ -73,7 +74,16 @@ fun DreidelScreen(
 
         Spacer(Modifier.height(height = 16.dp))
 
-        Text(text = state.message, fontSize = 22.sp)
+        Text(
+            text = when (state.messageKey) {
+                MessageKey.NUN -> "Nun – nothing happens"
+                MessageKey.GIMEL -> "Gimel – you took the whole pot!"
+                MessageKey.HEI -> "Hei – you took half the pot"
+                MessageKey.SHIN -> "Shin – you added 1 to the pot"
+                MessageKey.SPINNING -> "Spinning..."
+                null -> "Tap spin to play"
+            }, fontSize = 22.sp
+        )
 
         Spacer(Modifier.height(height = 24.dp))
 
