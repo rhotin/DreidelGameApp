@@ -61,22 +61,23 @@ class DreidelViewModelTest {
     @Test
     fun spin_results_are_correct() = runTest {
         val cases = listOf(
-            DreidelLandingResult.GIMEL to Triple(0, 10, "GIMEL"),
-            DreidelLandingResult.NUN to Triple(10, 10, "NUN"),
-            DreidelLandingResult.HEI to Triple(5, 10, "HEI"),
-            DreidelLandingResult.SHIN to Triple(11, 10, "SHIN")
+            DreidelLandingResult.GIMEL to Triple(0, -10, "GIMEL"),
+            DreidelLandingResult.NUN to Triple(10, 0, "NUN"),
+            DreidelLandingResult.HEI to Triple(5, -5, "HEI"),
+            DreidelLandingResult.SHIN to Triple(11, +1, "SHIN")
         )
 
         cases.forEach { (result, expected) ->
-            val (expectedPot, expectedPrev, _) = expected
+            val (expectedPot, expectedDelta, _) = expected
             val viewModel = createViewModel(result)
             viewModel.onIntent(DreidelIntent.Spin)
             advanceUntilIdle()
             val state = viewModel.state.value
             Assert.assertEquals(expectedPot, state.pot)
-            Assert.assertEquals(expectedPrev, state.potDelta)
+            Assert.assertEquals(expectedDelta, state.potDelta)
             Assert.assertEquals(result, state.lastSide)
             Assert.assertFalse(state.isSpinning)
+            Assert.assertNotNull(state.messageKey)
         }
     }
 
@@ -94,7 +95,7 @@ class DreidelViewModelTest {
             advanceUntilIdle()
             val state = viewModel.state.value
             Assert.assertEquals(10, state.pot)
-            Assert.assertEquals(10, state.potDelta)
+            Assert.assertEquals(0, state.potDelta)
             Assert.assertNull(state.lastSide)
             Assert.assertFalse(state.isSpinning)
         }
