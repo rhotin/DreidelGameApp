@@ -1,7 +1,7 @@
 package com.rhappdeveloper.dreidelgameapp.domain
 
-import com.rhappdeveloper.dreidelgameapp.model.DreidelLandingResult
+import com.rhappdeveloper.dreidelgameapp.model.DreidelOutcome
 
 fun interface DreidelSideProvider {
-    fun next(): DreidelLandingResult
+    fun next(): DreidelOutcome
 }

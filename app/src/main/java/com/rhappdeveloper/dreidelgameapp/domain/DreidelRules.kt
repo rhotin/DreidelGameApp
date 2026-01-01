@@ -1,51 +1,38 @@
 package com.rhappdeveloper.dreidelgameapp.domain
 
-import com.rhappdeveloper.dreidelgameapp.model.DreidelLandingResult
+import com.rhappdeveloper.dreidelgameapp.model.DreidelOutcome
 
 data class DreidelRuleResult(
     val newPot: Int,
-    val messageKey: MessageKey,
     val potDelta: Int = 0
 )
 
-enum class MessageKey {
-    NUN,
-    GIMEL,
-    HEI,
-    SHIN,
-    SPINNING
-}
-
 class DreidelRules {
-    fun apply(pot: Int, side: DreidelLandingResult): DreidelRuleResult {
+    fun apply(pot: Int, side: DreidelOutcome): DreidelRuleResult {
         return when (side) {
-            DreidelLandingResult.NUN ->
+            DreidelOutcome.DO_NOTHING ->
                 DreidelRuleResult(
                     newPot = pot,
-                    messageKey = MessageKey.NUN,
                     potDelta = 0
                 )
 
-            DreidelLandingResult.GIMEL ->
+            DreidelOutcome.TAKE_POT ->
                 DreidelRuleResult(
                     newPot = 0,
-                    messageKey = MessageKey.GIMEL,
                     potDelta = -pot
                 )
 
-            DreidelLandingResult.HEI -> {
+            DreidelOutcome.TAKE_HALF_POT -> {
                 val taken = pot / 2
                 DreidelRuleResult(
                     newPot = pot - taken,
-                    messageKey = MessageKey.HEI,
                     potDelta = -taken
                 )
             }
 
-            DreidelLandingResult.SHIN ->
+            DreidelOutcome.PUT_ONE ->
                 DreidelRuleResult(
                     newPot = pot + 1,
-                    messageKey = MessageKey.SHIN,
                     potDelta = +1
                 )
         }

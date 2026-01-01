@@ -1,5 +1,6 @@
 package com.rhappdeveloper.dreidelgameapp.ui.screen
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,18 +13,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.rhappdeveloper.dreidelgameapp.domain.MessageKey
+import com.rhappdeveloper.dreidelgameapp.model.DreidelRuleSet
 import com.rhappdeveloper.dreidelgameapp.mvi.DreidelEffect
 import com.rhappdeveloper.dreidelgameapp.mvi.DreidelIntent
 import com.rhappdeveloper.dreidelgameapp.mvi.DreidelViewModel
@@ -37,18 +42,34 @@ fun DreidelScreen(
     viewModel: DreidelViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    // Add local state for rule toggle
+    var ruleSet by rememberSaveable {
+        mutableStateOf(DreidelRuleSet.CLASSIC)
+    }
+
+    val message = when {
+        state.isSpinning -> "Spinning..."
+        state.lastSide != null ->
+            state.lastSide?.message(
+                potDelta = state.potDelta,
+                potBefore = state.potBefore
+            ) ?: "Tap spin to play"
+
+        else -> "Tap spin to play"
+    }
+
 
     LaunchedEffect(Unit) {
         viewModel.effects.collect { effect ->
             when (effect) {
                 DreidelEffect.ResultSound -> {
-                    // play spin sound
-                    SystemSoundPlayer.playSpin()
+                    // play result sound
+                    SystemSoundPlayer.playResult()
                 }
 
                 DreidelEffect.SpinSound -> {
-                    // play result sound
-                    SystemSoundPlayer.playResult()
+                    // play spin sound
+                    SystemSoundPlayer.playSpin()
                 }
             }
         }
@@ -61,6 +82,34 @@ fun DreidelScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.End
+        ) {
+            Text(
+                text = if (ruleSet == DreidelRuleSet.CLASSIC) "Classic" else "Israel",
+                fontSize = 16.sp,
+                modifier = Modifier
+                    .padding(end = 8.dp)
+                    .clickable {
+                        ruleSet = if (ruleSet == DreidelRuleSet.CLASSIC) DreidelRuleSet.ISRAEL
+                        else DreidelRuleSet.CLASSIC
+                    }
+            )
+            Switch(
+                checked = ruleSet == DreidelRuleSet.ISRAEL,
+                onCheckedChange = {
+                    ruleSet = if (it) DreidelRuleSet.ISRAEL else DreidelRuleSet.CLASSIC
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Text(text = "Dreidel Game", fontSize = 28.sp)
         Spacer(Modifier.height(height = 16.dp))
 
@@ -75,28 +124,8 @@ fun DreidelScreen(
         Spacer(Modifier.height(height = 16.dp))
 
         Text(
-            text = when (state.messageKey) {
-                MessageKey.NUN -> "Nun – nothing happens"
-                MessageKey.GIMEL -> {
-                    val taken = kotlin.math.abs(state.potDelta)
-                    when {
-                        taken == 0 -> "Gimel – the pot is empty"
-                        else -> "Gimel – you took the whole pot!"
-                    }
-                }
-
-                MessageKey.HEI -> {
-                    when (val taken = kotlin.math.abs(state.potDelta)) {
-                        0 -> "Hei – nothing to take"
-                        1 -> "Hei – you took 1 coin from the pot"
-                        else -> "Hei – you took $taken coins from the pot"
-                    }
-                }
-
-                MessageKey.SHIN -> "Shin – you added 1 to the pot"
-                MessageKey.SPINNING -> "Spinning..."
-                null -> "Tap spin to play"
-            }, fontSize = 22.sp
+            text = message,
+            fontSize = 22.sp
         )
 
         Spacer(Modifier.height(height = 24.dp))
@@ -119,7 +148,7 @@ fun DreidelScreen(
             }
             Button(
                 modifier = Modifier.testTag("spin_button"),
-                onClick = { viewModel.onIntent(intent = DreidelIntent.Spin) },
+                onClick = { viewModel.onIntent(intent = DreidelIntent.Spin(ruleSet)) },
                 enabled = !state.isSpinning
             ) {
                 Text(text = if (state.isSpinning) "Spinning..." else "Spin Dreidel")

@@ -5,9 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rhappdeveloper.dreidelgameapp.domain.DreidelRules
 import com.rhappdeveloper.dreidelgameapp.domain.DreidelSideProvider
-import com.rhappdeveloper.dreidelgameapp.domain.MessageKey
 import com.rhappdeveloper.dreidelgameapp.model.DreidelLandingResult
+import com.rhappdeveloper.dreidelgameapp.model.DreidelRuleSet
 import com.rhappdeveloper.dreidelgameapp.model.DreidelState
+import com.rhappdeveloper.dreidelgameapp.model.toDisplaySide
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
@@ -20,7 +21,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class DreidelViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
-    private val sideProvider: DreidelSideProvider,
+    private val outcomeProvider: DreidelSideProvider,
     private val rules: DreidelRules
 ) : ViewModel() {
 
@@ -42,7 +43,7 @@ class DreidelViewModel @Inject constructor(
 
     fun onIntent(intent: DreidelIntent) {
         when (intent) {
-            DreidelIntent.Spin -> spin()
+            is DreidelIntent.Spin -> spin(intent.ruleSet)
             DreidelIntent.Reset -> reset()
         }
     }
@@ -53,20 +54,18 @@ class DreidelViewModel @Inject constructor(
                 lastSide = null,
                 potDelta = 0,
                 pot = 10,
-                messageKey = null,
                 isSpinning = false
             )
         )
     }
 
-    private fun spin() {
+    private fun spin(ruleSet: DreidelRuleSet) {
 
         if (_state.value.isSpinning) return
 
         updateState(
             _state.value.copy(
                 isSpinning = true,
-                messageKey = MessageKey.SPINNING
             )
         )
 
@@ -75,15 +74,16 @@ class DreidelViewModel @Inject constructor(
             delay(1200)
 
             val current = _state.value
-            val side = sideProvider.next()
+            val side = outcomeProvider.next()
             val result = rules.apply(current.pot, side)
+            val sideLanded = side.toDisplaySide(ruleSet)
 
             updateState(
                 current.copy(
                     pot = result.newPot,
+                    potBefore = current.pot,
                     potDelta = result.potDelta,
-                    lastSide = side,
-                    messageKey = result.messageKey,
+                    lastSide = sideLanded,
                     isSpinning = false
                 )
             )
