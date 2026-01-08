@@ -349,16 +349,6 @@ class DreidelRenderer : GLSurfaceView.Renderer {
         return bitmap
     }
 
-//    fun setRuleMode(newRuleMode: DreidelRuleSet) {
-//        if (ruleMode == newRuleMode) return
-//        ruleMode = newRuleMode
-//
-//        // Update right face texture
-//        val newLetter = getRightFaceLetter()
-//        letters[3] = newLetter
-//        updateFaceTexture(3, newLetter)
-//    }
-
     // Helper to update a single face texture
     private fun updateFaceTexture(faceIndex: Int, letter: String) {
         val bitmap = getLetterBitmap(letter)
