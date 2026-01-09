@@ -1,11 +1,12 @@
 package com.rhappdeveloper.dreidelgameapp.model
 
 enum class Face(val angle: Float,
+                val textureIndex: Int,
                 val results: Set<DreidelLandingResult>) {
-    FRONT(0f, setOf(DreidelLandingResult.NUN)),
-    LEFT(90f, setOf(DreidelLandingResult.GIMEL)),
-    BACK(180f, setOf(DreidelLandingResult.HEI)),
-    RIGHT(270f, setOf(
+    FRONT(0f, 0, setOf(DreidelLandingResult.NUN)),
+    LEFT(90f,1,  setOf(DreidelLandingResult.HEI)),
+    BACK(180f,2, setOf(DreidelLandingResult.GIMEL)),
+    RIGHT(270f,3, setOf(
         DreidelLandingResult.SHIN,
         DreidelLandingResult.PEY
     ))

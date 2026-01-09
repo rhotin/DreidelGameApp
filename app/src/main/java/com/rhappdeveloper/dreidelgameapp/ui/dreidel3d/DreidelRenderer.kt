@@ -13,10 +13,12 @@ import com.rhappdeveloper.dreidelgameapp.model.DreidelSpinAnimationState
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 import kotlin.math.absoluteValue
-import kotlin.math.roundToInt
 import androidx.core.graphics.createBitmap
 
 class DreidelRenderer : GLSurfaceView.Renderer {
+
+    private var ruleMode: DreidelRuleSet = DreidelRuleSet.CLASSIC
+    private var spinDirection = 1f // +1 or -1
 
     private var spinning = false
     private var angleY = 0f
@@ -41,14 +43,16 @@ class DreidelRenderer : GLSurfaceView.Renderer {
     private lateinit var vertexBuffer: java.nio.FloatBuffer
     private var program = 0
 
-    private var ruleMode: DreidelRuleSet = DreidelRuleSet.CLASSIC
-
     // Textures for faces (נ, ג, ה, ש)
     private val textureIds = IntArray(6) // 6 cube faces
 
     // Letters on faces (front, back, left, right)
-    private val letters =
-        arrayOf("נ", "ה", "ג", getRightFaceLetter(), "", "") // top and bottom empty
+    private val letters = Array(6) { "" }.apply {
+        this[Face.FRONT.textureIndex] = "נ"
+        this[Face.BACK.textureIndex] = "ה"
+        this[Face.LEFT.textureIndex] = "ג"
+        this[Face.RIGHT.textureIndex] = getRightFaceLetter()
+    }
 
     // Texture coordinates per face
     private val texCoords = floatArrayOf(
@@ -128,6 +132,18 @@ class DreidelRenderer : GLSurfaceView.Renderer {
         0.5f, -0.5f, 0.5f
     )
 
+    // Stem (cylinder) parameters
+    private val stemRadius = 0.15f
+    private val stemHeight = 0.6f
+    private val stemSegments = 16
+    private lateinit var stemVertices: java.nio.FloatBuffer
+
+    // Pyramid tip parameters
+    private val tipHeight = 0.6f
+    private val tipBase = 0.5f
+    private lateinit var tipVertices: java.nio.FloatBuffer
+    private lateinit var tipIndices: java.nio.ShortBuffer
+
     // Shaders
     private val vertexShaderCode = """
         attribute vec4 vPosition;
@@ -157,14 +173,19 @@ class DreidelRenderer : GLSurfaceView.Renderer {
         // Reset for new spin
         activeSpinId = state.spinId
         spinning = true
+        spinDirection = if (kotlin.random.Random.nextBoolean()) 1f else -1f
         landingFace = state.landingFace
 
         // Current angle modulo 360
         val currentMod = angleY % 360f
         val faceAngle = state.landingFace?.angle ?: 0f
+        val directedDelta =
+            if (spinDirection > 0) normalizeAngle(faceAngle - currentMod) else normalizeAngle(
+                faceAngle - currentMod
+            ) - 360f
 
         // Compute target: full spins + final landing
-        targetAngle = angleY + state.spins * 360f + (faceAngle - currentMod)
+        targetAngle = angleY + spinDirection * (state.spins * 360f) + directedDelta
 
         // Set velocity
         angularVelocity = state.initialVelocity
@@ -176,7 +197,14 @@ class DreidelRenderer : GLSurfaceView.Renderer {
         config: EGLConfig
     ) {
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
-        GLES20.glClearColor(0f, 0f, 0f, 1f) // black background
+        GLES20.glDepthFunc(GLES20.GL_LEQUAL)
+        GLES20.glEnable(GLES20.GL_BLEND)
+        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+        GLES20.glClearColor(0f, 0f, 0f, 0f) // black background
+
+//        GLES20.glEnable(GLES20.GL_BLEND)
+//        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+//        GLES20.glClearColor(0f, 0f, 0f, 0f)
 
         val bb = java.nio.ByteBuffer
             .allocateDirect(cubeCoords.size * 4)
@@ -221,6 +249,61 @@ class DreidelRenderer : GLSurfaceView.Renderer {
             )
             GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0)
         }
+
+        //
+        // Cylinder stem
+        val stemVerts = mutableListOf<Float>()
+        for (i in 0..stemSegments) {
+            val angle = (2 * Math.PI / stemSegments * i).toFloat()
+            val x = stemRadius * kotlin.math.cos(angle)
+            val z = stemRadius * kotlin.math.sin(angle)
+            // Bottom vertex
+            stemVerts.add(x)
+            stemVerts.add(0.5f) // top of cube
+            stemVerts.add(z)
+            // Top vertex
+            stemVerts.add(x)
+            stemVerts.add(0.5f + stemHeight)
+            stemVerts.add(z)
+        }
+        stemVertices = java.nio.ByteBuffer.allocateDirect(stemVerts.size * 4)
+            .order(java.nio.ByteOrder.nativeOrder())
+            .asFloatBuffer()
+            .apply {
+                put(stemVerts.toFloatArray())
+                position(0)
+            }
+
+// Pyramid tip
+        val tipCoords = floatArrayOf(
+            0f, -0.5f - tipHeight, 0f,                  // tip
+            -tipBase, -0.5f, tipBase,                   // base corners
+            tipBase, -0.5f, tipBase,
+            tipBase, -0.5f, -tipBase,
+            -tipBase, -0.5f, -tipBase
+        )
+        tipVertices = java.nio.ByteBuffer.allocateDirect(tipCoords.size * 4)
+            .order(java.nio.ByteOrder.nativeOrder())
+            .asFloatBuffer()
+            .apply {
+                put(tipCoords)
+                position(0)
+            }
+
+        val tipIdx = shortArrayOf(
+            0, 1, 2,
+            0, 2, 3,
+            0, 3, 4,
+            0, 4, 1
+        )
+        tipIndices = java.nio.ByteBuffer.allocateDirect(tipIdx.size * 2)
+            .order(java.nio.ByteOrder.nativeOrder())
+            .asShortBuffer()
+            .apply {
+                put(tipIdx)
+                position(0)
+            }
+
     }
 
     override fun onSurfaceChanged(
@@ -293,8 +376,7 @@ class DreidelRenderer : GLSurfaceView.Renderer {
 
             // Stop when very close
             if (remaining.absoluteValue < 0.5f) {
-                val landedAngle = (targetAngle / 90f).roundToInt() * 90f
-                angleY = landedAngle
+                angleY = targetAngle
                 spinning = false
                 angularVelocity = 0f
                 activeSpinId = -1L
@@ -313,12 +395,38 @@ class DreidelRenderer : GLSurfaceView.Renderer {
         Matrix.multiplyMM(mvpMatrix, 0, projectionMatrix, 0, mvpMatrix, 0)
         GLES20.glUniformMatrix4fv(matrixHandle, 1, false, mvpMatrix, 0)
 
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         // Draw 4 sides with textures
-        for (i in 0 until 6) {
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureIds[i])
+        Face.entries.forEach { face ->
+            GLES20.glBindTexture(
+                GLES20.GL_TEXTURE_2D,
+                textureIds[face.textureIndex]
+            )
             GLES20.glUniform1i(samplerHandle, 0)
-            GLES20.glDrawArrays(GLES20.GL_TRIANGLES, i * 6, 6)
+            GLES20.glDrawArrays(
+                GLES20.GL_TRIANGLES,
+                face.textureIndex * 6,
+                6
+            )
         }
+
+        // Stem (cylinder) — just simple color
+        GLES20.glDisableVertexAttribArray(texHandle) // no texture for stem
+        val stemColorHandle = GLES20.glGetUniformLocation(program, "uColor")
+        GLES20.glUniform4f(stemColorHandle, 0.6f, 0.3f, 0f, 1f) // brown
+        stemVertices.position(0)
+        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 3 * 4, stemVertices)
+        GLES20.glEnableVertexAttribArray(positionHandle)
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, stemSegments * 2 + 2)
+
+// Pyramid tip — simple color
+        tipVertices.position(0)
+        tipIndices.position(0)
+        GLES20.glUniform4f(stemColorHandle, 0.8f, 0.8f, 0.8f, 1f) // gray
+        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 3 * 4, tipVertices)
+        GLES20.glEnableVertexAttribArray(positionHandle)
+        GLES20.glDrawElements(GLES20.GL_TRIANGLES, 12, GLES20.GL_UNSIGNED_SHORT, tipIndices)
+
         GLES20.glDisableVertexAttribArray(positionHandle)
         GLES20.glDisableVertexAttribArray(texHandle)
     }
@@ -366,9 +474,11 @@ class DreidelRenderer : GLSurfaceView.Renderer {
         if (ruleMode == newRuleMode) return
         ruleMode = newRuleMode
 
+        val face = Face.RIGHT
         val newLetter = getRightFaceLetter()
-        letters[3] = newLetter
-        updateFaceTexture(3, newLetter)
+
+        letters[face.textureIndex] = newLetter
+        updateFaceTexture(face.textureIndex, newLetter)
     }
 
     private fun getLetterBitmap(letter: String): Bitmap =
@@ -376,4 +486,7 @@ class DreidelRenderer : GLSurfaceView.Renderer {
             createLetterBitmap(letter)
         }
 
+    private fun normalizeAngle(angle: Float): Float {
+        return ((angle % 360f) + 360f) % 360f
+    }
 }

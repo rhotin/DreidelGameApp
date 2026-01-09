@@ -15,15 +15,6 @@ fun Dreidel3D(
     ruleMode: DreidelRuleSet,
     onSpinFinished: () -> Unit
 ) {
-//    Box(
-//        modifier = Modifier.size(160.dp),
-//        contentAlignment = Alignment.Center
-//    ) {
-//        Text(
-//            text = "🧊 3D Dreidel",
-//            fontSize = 24.sp
-//        )
-//    }
     AndroidView(
         factory = { context ->
             DreidelGLSurfaceView(context).apply {
