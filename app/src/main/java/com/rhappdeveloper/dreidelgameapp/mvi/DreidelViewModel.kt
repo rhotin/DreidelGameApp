@@ -123,7 +123,6 @@ class DreidelViewModel @Inject constructor(
     private fun updateState(newState: DreidelState) {
         _state.value = newState
         savedStateHandle[KEY_POT] = _state.value.pot
-        savedStateHandle[KEY_LAST_SIDE] = _state.value.lastSide
     }
 
     fun onSpinAnimationFinished() {
@@ -131,7 +130,6 @@ class DreidelViewModel @Inject constructor(
     }
 
     private fun faceFor(result: DreidelLandingResult): Face =
-        Face.entries.firstOrNull { result in it.results }
-            ?: error("No face mapping for $result")
+        Face.entries.first { result in it.results }
 
 }

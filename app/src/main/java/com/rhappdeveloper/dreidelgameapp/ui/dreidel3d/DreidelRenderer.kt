@@ -144,6 +144,11 @@ class DreidelRenderer : GLSurfaceView.Renderer {
     private lateinit var tipVertices: java.nio.FloatBuffer
     private lateinit var tipIndices: java.nio.ShortBuffer
 
+    //shadow
+    private lateinit var shadowBuffer: java.nio.FloatBuffer
+    private val shadowRadius = 0.9f
+    private val groundY = -0.5f - tipHeight - 0.02f
+
     // Shaders
     private val vertexShaderCode = """
         attribute vec4 vPosition;
@@ -160,8 +165,12 @@ class DreidelRenderer : GLSurfaceView.Renderer {
         precision mediump float;
         varying vec2 vTexCoord;
         uniform sampler2D uTexture;
+        uniform bool uUseTexture;
+        uniform vec4 uColor;
         void main() {
-            gl_FragColor = texture2D(uTexture, vTexCoord);
+            gl_FragColor = uUseTexture
+        ? texture2D(uTexture, vTexCoord)
+        : uColor;
         }
     """.trimIndent()
 
@@ -196,12 +205,7 @@ class DreidelRenderer : GLSurfaceView.Renderer {
         gl: GL10,
         config: EGLConfig
     ) {
-        GLES20.glEnable(GLES20.GL_DEPTH_TEST)
-        GLES20.glDepthFunc(GLES20.GL_LEQUAL)
-        GLES20.glEnable(GLES20.GL_BLEND)
-        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
-        GLES20.glClearColor(0f, 0f, 0f, 0f) // black background
-
+        setupGlState()
 //        GLES20.glEnable(GLES20.GL_BLEND)
 //        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
 //        GLES20.glClearColor(0f, 0f, 0f, 0f)
@@ -304,6 +308,40 @@ class DreidelRenderer : GLSurfaceView.Renderer {
                 position(0)
             }
 
+        //Shadow
+        val segments = 32
+        val verts = mutableListOf<Float>()
+
+        for (i in 0 until segments) {
+            val angle1 = (2 * Math.PI * i / segments).toFloat()
+            val angle2 = (2 * Math.PI * (i + 1) / segments).toFloat()
+
+            // center
+            verts.add(0f)
+            verts.add(groundY) // just under cube bottom
+            verts.add(0f)
+
+            // edge 1
+            verts.add(kotlin.math.cos(angle1) * shadowRadius)
+            verts.add(groundY)
+            verts.add(kotlin.math.sin(angle1) * shadowRadius)
+
+            // edge 2
+            verts.add(kotlin.math.cos(angle2) * shadowRadius)
+            verts.add(groundY)
+            verts.add(kotlin.math.sin(angle2) * shadowRadius)
+        }
+
+        shadowBuffer = java.nio.ByteBuffer
+            .allocateDirect(verts.size * 4)
+            .order(java.nio.ByteOrder.nativeOrder())
+            .asFloatBuffer()
+            .apply {
+                put(verts.toFloatArray())
+                position(0)
+            }
+
+
     }
 
     override fun onSurfaceChanged(
@@ -335,7 +373,38 @@ class DreidelRenderer : GLSurfaceView.Renderer {
         val texHandle = GLES20.glGetAttribLocation(program, "aTexCoord")
         val matrixHandle = GLES20.glGetUniformLocation(program, "uMVPMatrix")
         val samplerHandle = GLES20.glGetUniformLocation(program, "uTexture")
+        val useTextureHandle = GLES20.glGetUniformLocation(program, "uUseTexture")
+        val colorHandle = GLES20.glGetUniformLocation(program, "uColor")
 
+        // Camera (View matrix)
+        Matrix.setLookAtM(
+            viewMatrix,
+            0,
+            -1.0f, 0.8f, 4.5f,   // camera position
+            0f, 0f, 0f,   // look at center
+            0f, 1f, 0f    // up vector
+        )
+
+        // ----- Shadow -----
+        GLES20.glUniform1i(useTextureHandle, 0)
+        GLES20.glUniform4f(colorHandle, 0f, 0f, 0f, 0.25f)
+
+        Matrix.setIdentityM(modelMatrix, 0)
+        // squash shadow slightly
+        Matrix.scaleM(modelMatrix, 0, 1.1f, 1f, 1.1f)
+
+        Matrix.multiplyMM(mvpMatrix, 0, viewMatrix, 0, modelMatrix, 0)
+        Matrix.multiplyMM(mvpMatrix, 0, projectionMatrix, 0, mvpMatrix, 0)
+        GLES20.glUniformMatrix4fv(matrixHandle, 1, false, mvpMatrix, 0)
+
+        shadowBuffer.position(0)
+        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 3 * 4, shadowBuffer)
+        GLES20.glEnableVertexAttribArray(positionHandle)
+
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, shadowBuffer.capacity() / 3)
+        // ----- End Shadow -----
+
+        // ----- Cube -----
         GLES20.glEnableVertexAttribArray(positionHandle)
         GLES20.glVertexAttribPointer(
             positionHandle,
@@ -350,14 +419,7 @@ class DreidelRenderer : GLSurfaceView.Renderer {
         GLES20.glVertexAttribPointer(texHandle, 2, GLES20.GL_FLOAT, false, 2 * 4, texCoordBuffer)
 
         // Create rotation matrix
-        // Camera (View matrix)
-        Matrix.setLookAtM(
-            viewMatrix,
-            0,
-            0f, 0f, 4f,   // camera position
-            0f, 0f, 0f,   // look at center
-            0f, 1f, 0f    // up vector
-        )
+
 
         if (spinning) {
             val remaining = targetAngle - angleY
@@ -396,6 +458,8 @@ class DreidelRenderer : GLSurfaceView.Renderer {
         GLES20.glUniformMatrix4fv(matrixHandle, 1, false, mvpMatrix, 0)
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        GLES20.glUniform1i(useTextureHandle, 1) // USE TEXTURE
+
         // Draw 4 sides with textures
         Face.entries.forEach { face ->
             GLES20.glBindTexture(
@@ -411,18 +475,19 @@ class DreidelRenderer : GLSurfaceView.Renderer {
         }
 
         // Stem (cylinder) — just simple color
+        GLES20.glUniform1i(useTextureHandle, 0) // NO TEXTURE
+        GLES20.glUniform4f(colorHandle, 0.6f, 0.3f, 0f, 1f)
         GLES20.glDisableVertexAttribArray(texHandle) // no texture for stem
-        val stemColorHandle = GLES20.glGetUniformLocation(program, "uColor")
-        GLES20.glUniform4f(stemColorHandle, 0.6f, 0.3f, 0f, 1f) // brown
         stemVertices.position(0)
         GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 3 * 4, stemVertices)
         GLES20.glEnableVertexAttribArray(positionHandle)
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, stemSegments * 2 + 2)
 
 // Pyramid tip — simple color
+        GLES20.glUniform1i(useTextureHandle, 0)
+        GLES20.glUniform4f(colorHandle, 0.75f, 0.1f, 0.1f, 1f)
         tipVertices.position(0)
         tipIndices.position(0)
-        GLES20.glUniform4f(stemColorHandle, 0.8f, 0.8f, 0.8f, 1f) // gray
         GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 3 * 4, tipVertices)
         GLES20.glEnableVertexAttribArray(positionHandle)
         GLES20.glDrawElements(GLES20.GL_TRIANGLES, 12, GLES20.GL_UNSIGNED_SHORT, tipIndices)
@@ -488,5 +553,13 @@ class DreidelRenderer : GLSurfaceView.Renderer {
 
     private fun normalizeAngle(angle: Float): Float {
         return ((angle % 360f) + 360f) % 360f
+    }
+
+    private fun setupGlState() {
+        GLES20.glEnable(GLES20.GL_DEPTH_TEST)
+        GLES20.glDepthFunc(GLES20.GL_LEQUAL)
+        GLES20.glEnable(GLES20.GL_BLEND)
+        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+        GLES20.glClearColor(0f, 0f, 0f, 0f) // transparent background - p3 = 1f for black background
     }
 }
